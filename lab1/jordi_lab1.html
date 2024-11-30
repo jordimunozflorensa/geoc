@@ -1,0 +1,389 @@
+<html>
+<head>
+<title>GEOC - Lab 1</title>
+</head>
+<h1>GEOC - Lab 1</h1>
+
+<br>
+Last mouse position on canvas: <span id="mousepos"></span>
+<br>
+<canvas id="canvas" width="1200" height="800"></canvas>
+<br>
+
+
+<script type="text/javascript" src="TestLab1.json.js"></script>
+<script src="math.js" type="text/javascript"></script>
+
+<h2>Result of (an absurd) intersection classification</h2>
+<span id="result"></span>
+<div id="legend"></div>
+<style>
+#legend {
+	position: absolute;
+	bottom: 10px; /* Adjust this value as needed for spacing */
+	right: 10px; /* Adjust this value as needed for spacing */
+	background-color: white; /* Add background color for better visibility */
+	border: 1px solid #ccc; /* Optional: border to differentiate the legend area */
+	padding: 10px; /* Padding for aesthetic spacing inside the legend box */
+	max-width: 200px; /* Optional: Set max-width to avoid it growing too wide */
+}
+</style>
+
+<script type="text/javascript">
+
+//========= Auxiliary objects and data =========//
+
+// Important: this is the input
+var segments = inputJSON.segments; // Requires inputJSON variable set in file
+//var segments = inputJSON.segments.slice(0,6); // You can use slice() to select a subset of the segments. Make sure it is an even number!
+
+var points = [];
+// See names colors at https://www.w3schools.com/colors/colors_names.asp
+// Add as many colors as needed to classify all intersection types
+var colors = ['Blue', 'Red', 'Green', 'Cyan', 'DarkOrange', 'Magenta', 'RosyBrown', 'Yellow', 'Purple'];
+
+// default styles
+style = {
+  curve: {
+    width: 6,
+    color: "#333"
+  },
+  line: {
+    width: 1,
+    color: "#C00"
+  },
+  point: {
+    radius: 4,
+    width: 2,
+    color: "Black",
+    fill: "Black",
+    arc1: 0,
+    arc2: 2 * Math.PI
+  }
+}
+
+context1 = canvas.getContext("2d");
+drawCanvas();
+
+
+//========= Auxiliary functions =========//
+
+function createLegend() {
+    // Legend descriptions based on intersection type
+    var legendDescriptions = [
+        "0: Segments are equal", // Type 0
+		"1: There is no intersection", // Type 1
+		"2: One subset of the other, starting at an endpoint", // Type 2
+		"3: One subset of the other, without sharing endpoint", // Type 3
+		"4: Collinear Endpoint-Endpoint", // Type 4
+		"5: Segments share some interior points", // Type 5
+		"6: Interior-Interior", // Type 6
+		"7: Non Collinear Endpoint-Endpoint", // Type 7
+		"8: Interior-Endpoint" // Type 8
+    ];
+    
+    var legendContainer = document.getElementById("legend");
+    legendContainer.innerHTML = "<h4>Intersection Legend</h4>";
+
+    // Iterate over colors and add descriptions
+    for (var i = 0; i < legendDescriptions.length; i++) {
+        if (colors[i]) { // Check if there is a color defined for the intersection type
+            var legendItem = document.createElement("div");
+            legendItem.style.display = "flex";
+            legendItem.style.alignItems = "center";
+            legendItem.style.marginBottom = "5px";
+
+            // Add color box
+            var colorBox = document.createElement("div");
+            colorBox.style.width = "20px";
+            colorBox.style.height = "20px";
+            colorBox.style.backgroundColor = colors[i];
+            colorBox.style.marginRight = "10px";
+            legendItem.appendChild(colorBox);
+
+            // Add description text
+            var description = document.createElement("span");
+            description.innerText = legendDescriptions[i];
+            legendItem.appendChild(description);
+
+            // Add legend item to the container
+            legendContainer.appendChild(legendItem);
+        }
+    }
+}
+
+// Call the createLegend function after the page loads
+window.onload = function() {
+    createLegend();
+    drawCanvas(); // Draw canvas after creating legend
+};
+
+
+// Method to show mouse position relative to canvas as the mouse moves.
+canvas.addEventListener('mousemove', function(e) {
+	var rect = canvas.getBoundingClientRect();
+	var x = e.clientX - Math.round(rect.left);
+	var y = e.clientY - Math.round(rect.top);
+	document.getElementById("mousepos").innerHTML = "(" + x + ", " + y + ")";
+});
+
+function drawCanvas() {
+  // Clear everything
+  context1.clearRect(-canvas.width / 2, -canvas.height / 2, 2 * canvas.width, 2 * canvas.height);
+  // Draw whatever needs to be drawn
+  drawSegments(context1, style, segments); 
+}
+
+// Draws one point as circle
+function drawPoint(ctx, style, p) {
+    ctx.lineWidth = style.point.width;
+    ctx.strokeStyle = style.point.color;
+    ctx.fillStyle = style.point.fill;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, style.point.radius, style.point.arc1, style.point.arc2, true);
+    ctx.fill();
+    ctx.stroke();
+}
+
+// Draws one segment
+function drawSegment(ctx, style, segment, lineColor) {
+    p1 = segment.from;
+	p2 = segment.to;
+
+	// Line segment
+    ctx.lineWidth = style.line.width;
+	ctx.strokeStyle = lineColor;
+    ctx.beginPath();
+	ctx.moveTo(p1.x,p1.y);
+	ctx.lineTo(p2.x,p2.y);
+    ctx.stroke();
+			
+	// Draw vertices
+	drawPoint(ctx, style, segment.from);
+	drawPoint(ctx, style, segment.to);
+}
+
+// Draws all segments
+function drawSegments(ctx, style, segments) {
+	//For each pair draw pair after classifying intersection
+
+	for (var i = 0; i < segments.length; i=i+2) {
+		// Classify intersection and obtain color to draw pair of segments
+		var intersectionClass = classifyIntersection(segments[i], segments[i+1]);
+		reportResult(intersectionClass); // print description
+		var lineColor = colors[intersectionClass.type];
+		// Draw segment 
+		drawSegment(ctx, style, segments[i], lineColor);
+		drawSegment(ctx, style, segments[i+1], lineColor);
+	}
+}
+
+// Outputs the value of the intersection classification to the "results" HTML element
+function reportResult(intersectionClass) {
+	var text = "<font color='" + colors[intersectionClass.type] + "'>";
+	text = text + intersectionClass.type + ": " + intersectionClass.description;
+	text = text + "</font><br>";
+	document.getElementById("result").innerHTML = document.getElementById("result").innerHTML + text;
+}
+
+//========= Your code probably should be somewhere here =========//
+function oneSubsetOfTheOther(s1, s2) {
+	return segmentsAreInside(s1, s2) || segmentsAreInside(s2, s1);
+}
+
+function segmentsAreInside(s1, s2) {
+	return pointInsideSegment(s2.from, s1) && pointInsideSegment(s2.to, s1);
+}
+
+function pointsAreEqual(p1, p2) {
+	return p1.x == p2.x && p1.y == p2.y;
+}
+
+function segmentsAreEqual(s1, s2) {
+	return (pointsAreEqual(s1.from, s2.from) && pointsAreEqual(s1.to, s2.to))
+		|| (pointsAreEqual(s1.from, s2.to) && pointsAreEqual(s1.to, s2.from));
+}
+
+function verticalAlligned(segment) {
+	return segment.from.x == segment.to.x;
+}
+
+function pointInsideSegment(point, segment) {
+	if (verticalAlligned(segment)) {
+		var min_y = math.min(segment.from.y, segment.to.y);
+		var max_y = math.max(segment.from.y, segment.to.y);
+		return point.y >= min_y && point.y <= max_y;
+	}
+	else {
+		var min_x = math.min(segment.from.x, segment.to.x);
+		var max_x = math.max(segment.from.x, segment.to.x);
+		return point.x >= min_x && point.x <= max_x;
+	}
+}
+	
+function bothDetAreZero(D1, D2) {
+	return D1 == 0 && D2 == 0;
+}
+
+function segmentsAreCollinear(D1, D2, D3, D4) {
+	return bothDetAreZero(D1,D2) && bothDetAreZero(D3,D4);
+}
+
+function collinearIntersection(D1, D2, D3, D4, s1, s2) {
+	if (segmentsAreCollinear(D1, D2, D3, D4)) {
+		if (pointInsideSegment(s2.from, s1) || pointInsideSegment(s2.to, s1)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+function nonCollinearIntersection(D1, D2, D3, D4) {
+	return (D1 != D2) && (D3 != D4);
+}
+
+function theyShareEndpoint(s1, s2) {
+	return pointsAreEqual(s1.from, s2.from) || pointsAreEqual(s1.to, s2.to)
+		|| pointsAreEqual(s1.from, s2.to) || pointsAreEqual(s1.to, s2.from);
+}
+
+function orientationTestSegmentPoint(p, q, r){
+	determinant = math.det([
+							[q.x - p.x, q.y - p.y],
+							[r.x - p.x, r.y - p.y]
+						]);
+	orientation = math.sign(determinant);
+
+	return orientation;
+}
+
+function getTypeCollinearIntersection(s1, s2) {
+	var intersectionType;
+	var intersectionTypeDescription;
+
+	if (segmentsAreEqual(s1, s2)) {
+		intersectionType = 0;
+		intersectionTypeDescription = "Intersection type: Segments are equal";
+	}
+	else if (oneSubsetOfTheOther(s1, s2)) {
+		if (theyShareEndpoint(s1, s2)) {
+			intersectionType = 2;
+			intersectionTypeDescription = "Intersection type: One subset of the other, starting at an endpoint";
+		}
+		else {
+			intersectionType = 3;
+			intersectionTypeDescription = "Intersection type: One subset of the other, without sharing endpoint";
+		}
+	}
+	else {
+		if (theyShareEndpoint(s1, s2)) {
+			intersectionType = 4;
+			intersectionTypeDescription = "Intersection type: Collinear Endpoint-Endpoint";
+		}
+		else {
+			intersectionType = 5;
+			intersectionTypeDescription = "Intersection type: Segments share some interior points";
+		}
+	}
+	
+	return [intersectionType, intersectionTypeDescription];
+}
+
+
+function getTypeNonCollinearIntersection(D1, D2, D3, D4) {
+    var endpointInS1 = (D1 == 0 || D2 == 0);
+    var endpointInS2 = (D3 == 0 || D4 == 0);
+    
+    var intersectionType;
+    var intersectionTypeDescription;
+
+    if (!endpointInS1 && !endpointInS2) {
+        intersectionType = 6;
+        intersectionTypeDescription = "Intersection type: Interior-Interior";
+    }
+    else if (endpointInS1 && endpointInS2) {
+        intersectionType = 7;
+        intersectionTypeDescription = "Intersection type: Non Collinear Endpoint-Endpoint";
+    }
+    else {
+        intersectionType = 8;
+        intersectionTypeDescription = "Intersection type: Interior-Endpoint";
+    }
+	
+    return [intersectionType, intersectionTypeDescription];
+}
+
+// Possible cases and workflow of classification:
+// if intersect:
+//  - collinearIntersection:
+//    - segmentsAreEqual        		
+//			O------O
+//
+//    - oneSubsetOfTheOther					
+//			a------b====b------a
+//
+//    - theySharePoints:					
+//	  	- theyShareEndpoint
+//   		a------O----b
+//
+//		- theyShareSomeInteriorPoints		
+//			a------b====a------b
+//
+//  - nonCollinearIntersection:
+//		- interiorInterior					
+//			  o		o
+//			   \   /
+//  		    \ /
+//		         X
+//				/ \
+//		       /   \
+//			  o     o
+//
+//		- EndpointEndpoint					 
+//					o
+//				   /
+//  			  /
+//		         O
+//				  \
+//		           \
+//			        o
+//
+//		- interiorEndpoint
+//                o
+//                |
+//                |
+//                o-------o
+//                |
+//                |
+//                o
+// else:
+//  - noIntersection				        
+// 			o----o  o----o
+function classifyIntersection(s1, s2) {
+	var intersectionType, intersectionTypeDescription;
+
+	var D1 = orientationTestSegmentPoint(s1.from, s1.to, s2.from);
+	var D2 = orientationTestSegmentPoint(s1.from, s1.to, s2.to);
+	var D3 = orientationTestSegmentPoint(s2.from, s2.to, s1.from);
+	var D4 = orientationTestSegmentPoint(s2.from, s2.to, s1.to);
+
+	if (collinearIntersection(D1, D2, D3, D4, s1, s2)) {
+		var typeAndDescription = getTypeCollinearIntersection(s1, s2);
+		intersectionType = typeAndDescription[0];
+		intersectionTypeDescription = typeAndDescription[1];
+	}
+	else if (nonCollinearIntersection(D1, D2, D3, D4)) {
+		var typeAndDescription = getTypeNonCollinearIntersection(D1, D2, D3, D4);
+		intersectionType = typeAndDescription[0];
+		intersectionTypeDescription = typeAndDescription[1];
+	}
+	else {
+		intersectionType = 1;
+		intersectionTypeDescription = "There is no intersection";
+	}
+	
+	return {"type": intersectionType, "description": intersectionTypeDescription} ;
+}
+
+</script>
+</html>

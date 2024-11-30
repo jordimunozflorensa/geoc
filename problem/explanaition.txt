@@ -1,0 +1,30 @@
+The minimum distance between two convex polygons
+Given two disjoint (i.e. non-intersecting) convex polygons P and Q, the goal is to find the pair(s) of points (p,q) (p belonging to P and q to Q) minimizing the distance between them.
+
+The fact that the polygons are disjoint is important, since it is assumed the polygon contains its interior. If the polygons intersect, then the minimum distance is meaningless. However, another version of this problem, the minimum vertex distance between convex polygons has solutions in intersecting and non-intersecting cases.
+
+Back to the main problem: intuitively, the points determining the minimum distance will not belong to the interior of their respective polygons. Similar to the maximum distance problem, we have the following result:
+
+The minimum distance between two convex polygons P and Q is determined by anti-podal pair between the polygons. As there are three cases for anti-podal pairs between convex polygons, three cases for the minimum distance can occur:
+
+    The vertex-vertex case
+    The vertex-edge case
+    The edge-edge case 
+
+
+In other words, the points determining the minimum distance are not necessarily vertices. The following three examples illustrate the above result:
+Min. distance vertex-vertex case Min. distance vertex-edge case Min. distance edge-edge case
+Given this result, an algorithm based on the Rotating Calipers naturally comes to mind:
+Consider the following algorithm, where the input is assumed to be two convex polygons P and Q with m and n vertices respectively given in clockwise order.
+
+    Compute the vertex with minimum y coordinate for P (call it yminP) and the vertex with maximum y coordinate for Q (call it ymaxQ).
+    Construct two lines of support LP and LQ for the polygons at yminP and ymaxQ such that the polygons lie to the right of their respective lines of support. Then LP and LQ have opposite direction, and yminP and ymaxQ form an anti-podal pair between the polygons.
+    Compute dist(yminP,ymaxQ) and keep it as the minimum.
+    Rotate the lines clockwise until one of them coincides with an edge of its polygon.
+    If only one line coincides with an edge, then the vertex-edge anti-podal pair distance should be computed along with the new vertex-vertex anti-podal pairA distance. Both distances are compared the current minimum, which is updated if necessary. If both lines of support coincide with edges, then the situation is somewhat more complex. If the edges "overlap", that is if one can construct a line perpendicular to both edges and intersecting both edges (but not at vertices), then the edge-edge distance should be computed. Otherwise the three new vertex-vertex anti-podal pair distances are computed. All distances are compared to the current minimum which is updated if necessary.
+    Repeat steps 4 and 5, until the lines reach (yminP, ymaxQ) again.
+    Output the minimum distance. 
+
+The Rotating Calipers paradigm ensures all possible anti-podal pairs (and all possible subcases) are considered. Furthermore, the whole algorithm has linear time complexity, since (besides the initialization), there are only as many steps as there are vertices.
+
+The maximum and minimum distance problems show that the Rotating Calipers paradigm can be used in different ways (compared to the previous problems of diameter and width). The paradigm can be applied to a two polygon case. 
